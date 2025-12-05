@@ -1,0 +1,76 @@
+name: Android CI
+
+# 手动触发
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    # 步骤 1: 设置 JDK 17 (仅用于运行 SDK Manager)
+    - name: set up JDK 17 for Android SDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    # 步骤 2: 初始化环境
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    # 步骤 3: 核心修复 - 降级 NDK 至 r20
+    - name: Install NDK r20 and Dependencies
+      run: |
+        echo "Cleaning incompatible SDK components..."
+        rm -rf $ANDROID_HOME/platforms/android-3*
+        rm -rf $ANDROID_HOME/build-tools/3[4-9]*
+        
+        echo "Accepting licenses..."
+        yes | sdkmanager --licenses > /dev/null
+        
+        echo "Installing NDK r20 (20.0.5594570)..."
+        sdkmanager --install "ndk;20.0.5594570" "cmake;3.10.2.4988404" "platforms;android-28" "build-tools;28.0.3"
+
+    # 步骤 4: 切换回 JDK 1.8 (项目编译必须)
+    - name: set up JDK 1.8 for Project Build
+      uses: actions/setup-java@v4
+      with:
+        java-version: '8'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    # 步骤 5: 构建 Debug APK
+    - name: Build Debug APK
+      env:
+        ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/20.0.5594570
+      run: ./gradlew assembleDebug --stacktrace
+      
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
+
+    # 步骤 6: 构建 Release APK (新增)
+    - name: Build Release APK
+      env:
+        ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/20.0.5594570
+      run: ./gradlew assembleRelease --stacktrace
+
+    # 步骤 7: 上传 Release APK (新增)
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        # 注意：如果没有配置签名，生成的文件名可能是 app-release-unsigned.apk
+        path: app/build/outputs/apk/release/*.apk
