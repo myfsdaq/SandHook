@@ -12,6 +12,7 @@
 #include "../includes/offset.h"
 #include "../includes/classlinker_offset_helper.h"
 #include "../includes/CydiaSubstrate.h"
+#include <unistd.h>
 
 extern int SDK_INT;
 
@@ -81,18 +82,40 @@ extern "C" {
         env->GetJavaVM(&jvm);
 
         if (BYTE_POINT == 8) {
-            if (SDK_INT >= ANDROID_Q) {
-                art_lib_path = "/lib64/libart.so";
-                jit_lib_path = "/lib64/libart-compiler.so";
+            if (SDK_INT >= ANDROID_R) {
+                art_lib_path = "/apex/com.android.art/lib64/libart.so";
+                jit_lib_path = "/apex/com.android.art/lib64/libart-compiler.so";
+                if (access(art_lib_path, F_OK) != 0) {
+                    art_lib_path = "/system/lib64/libart.so";
+                    jit_lib_path = "/system/lib64/libart-compiler.so";
+                }
+            } else if (SDK_INT >= ANDROID_Q) {
+                art_lib_path = "/apex/com.android.runtime/lib64/libart.so";
+                jit_lib_path = "/apex/com.android.runtime/lib64/libart-compiler.so";
+                if (access(art_lib_path, F_OK) != 0) {
+                    art_lib_path = "/system/lib64/libart.so";
+                    jit_lib_path = "/system/lib64/libart-compiler.so";
+                }
             } else {
                 art_lib_path = "/system/lib64/libart.so";
                 jit_lib_path = "/system/lib64/libart-compiler.so";
             }
         } else {
-            if (SDK_INT >= ANDROID_Q) {
-                art_lib_path = "/lib/libart.so";
-                jit_lib_path = "/lib/libart-compiler.so";
-             } else {
+            if (SDK_INT >= ANDROID_R) {
+                art_lib_path = "/apex/com.android.art/lib/libart.so";
+                jit_lib_path = "/apex/com.android.art/lib/libart-compiler.so";
+                if (access(art_lib_path, F_OK) != 0) {
+                    art_lib_path = "/system/lib/libart.so";
+                    jit_lib_path = "/system/lib/libart-compiler.so";
+                }
+            } else if (SDK_INT >= ANDROID_Q) {
+                art_lib_path = "/apex/com.android.runtime/lib/libart.so";
+                jit_lib_path = "/apex/com.android.runtime/lib/libart-compiler.so";
+                if (access(art_lib_path, F_OK) != 0) {
+                    art_lib_path = "/system/lib/libart.so";
+                    jit_lib_path = "/system/lib/libart-compiler.so";
+                }
+            } else {
                 art_lib_path = "/system/lib/libart.so";
                 jit_lib_path = "/system/lib/libart-compiler.so";
             }
@@ -198,7 +221,7 @@ extern "C" {
 //            }
 //        }
 
-        if (SDK_INT >= ANDROID_R && SDK_INT < 33) {
+        if (SDK_INT >= ANDROID_R && SDK_INT < ANDROID_T) {
             // android 13 and above this symbol never exist any more.
             void *shouldUseInterpreterEntrypoint = getSymCompat(art_lib_path,
                                                                 "_ZN3art11ClassLinker30ShouldUseInterpreterEntrypointEPNS_9ArtMethodEPKv");
@@ -465,4 +488,3 @@ extern "C" {
     }
 
 }
-
